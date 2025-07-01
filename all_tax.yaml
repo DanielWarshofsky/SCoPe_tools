@@ -18,9 +18,9 @@ children: [
               children: [
                 {name: periodic,key: pnp, 
                 children: [
-                  {name: ellipsoidal,key: sin, 
+                  {name: sinusoidal,key: sin, 
                     children: [
-                      {name: el,key: el}
+                      {name: ellipsoidal,key: el}
                     ]
                   }, 
                   {name: sawtooth,key: saw}, 

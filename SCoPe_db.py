@@ -1,55 +1,20 @@
 from penquins import Kowalski
 import pandas as pd
+import os
+import yaml
 class scope_client():
-    def __init__(self,tokens: dict, hosts: list, time_out=120,max_n_threads=4):
-        self.hosts=hosts
-        self.tokens=tokens
+    def __init__(self,config='config.yaml', time_out=120,max_n_threads=4):
+
+        assert os.path.exists(config), f"{config} is not a valid path"
+
+        with open('config.yaml','r') as f:
+            self.config_settings=yaml.load(f, Loader=yaml.FullLoader)
         self.max_n_threads=max_n_threads
-        self._setup_kowalski_(tokens,hosts,time_out)
-        self.class_pipeline=[]
-        self.feature_pipeline=[]
-        self.features_keys=['_id','mean','amplitude',
-            'period_ELS','significance_ELS',
-            'period_ECE','significance_ECE',
-            'period_EAOV','significance_EAOV',
-            'period_ELS_ECE_EAOV','significance_ELS_ECE_EAOV',
-            'AllWISE___id','AllWISE__w1mpro',
-            'AllWISE__w1sigmpro','AllWISE__w2mpro',
-            'AllWISE__w2sigmpro','AllWISE__w3mpro',
-            'AllWISE__w3sigmpro','AllWISE__w4mpro',
-            'AllWISE__w4sigmpro','AllWISE__ph_qual',
-            'Gaia_EDR3___id','Gaia_EDR3__phot_g_mean_mag',
-            'Gaia_EDR3__phot_bp_mean_mag','Gaia_EDR3__phot_rp_mean_mag',
-            'Gaia_EDR3__parallax','Gaia_EDR3__parallax_error',
-            'Gaia_EDR3__pmra','Gaia_EDR3__pmra_error','Gaia_EDR3__pmdec',
-            'Gaia_EDR3__pmdec_error','Gaia_EDR3__astrometric_excess_noise',
-            'Gaia_EDR3__phot_bp_rp_excess_factor',
-            'PS1_DR1___id','PS1_DR1__gMeanPSFMag',
-            'PS1_DR1__gMeanPSFMagErr','PS1_DR1__rMeanPSFMag',
-            'PS1_DR1__rMeanPSFMagErr','PS1_DR1__iMeanPSFMag',
-            'PS1_DR1__iMeanPSFMagErr','PS1_DR1__zMeanPSFMag',
-            'PS1_DR1__zMeanPSFMagErr','PS1_DR1__yMeanPSFMag',
-            'PS1_DR1__yMeanPSFMagErr','PS1_DR1__qualityFlag',]
-        self.classification_keys=['_id',
-            'ra','dec',
-            'period',
-            'field',
-            'ccd',
-            'quad',
-            'filter',
-            'e_dnn','dscu_dnn','dp_dnn','mir_dnn','rrc_dnn','agn_dnn','puls_dnn',
-            'bogus_dnn','rscvn_dnn','wvir_dnn','lpv_dnn','rrlyr_dnn','rrd_dnn','emsms_dnn',
-            'mp_dnn','ew_dnn','bis_dnn','blher_dnn','srv_dnn','fla_dnn','i_dnn','ceph2_dnn',
-            'ea_dnn','wuma_dnn','rrblz_dnn','ceph_dnn','osarg_dnn','ext_dnn','bright_dnn',
-            'el_dnn','dip_dnn','vnv_dnn','cv_dnn','pnp_dnn','sin_dnn','blend_dnn','eb_dnn',
-            'wp_dnn','rrab_dnn','hp_dnn','blyr_dnn','saw_dnn','longt_dnn','yso_dnn','blend_xgb',
-            'hp_xgb','bis_xgb','wp_xgb','eb_xgb','ceph_xgb','bright_xgb','wuma_xgb','longt_xgb',
-            'rrd_xgb','ceph2_xgb','osarg_xgb','rrblz_xgb','blyr_xgb','ea_xgb','lpv_xgb','agn_xgb',
-            'el_xgb','e_xgb','rrab_xgb','cv_xgb','mir_xgb','rrc_xgb','mp_xgb','yso_xgb','wvir_xgb',
-            'saw_xgb','puls_xgb','ew_xgb','sin_xgb','blher_xgb','dscu_xgb','dp_xgb','vnv_xgb','pnp_xgb',
-            'bogus_xgb','dip_xgb','i_xgb','rscvn_xgb','ext_xgb','emsms_xgb','srv_xgb','rrlyr_xgb','fla_xgb']
-        self._setup_projections_()
-        
+        self._setup_kowalski_(self.config_settings['tokens'],list(self.config_settings['tokens'].keys()),time_out)
+
+        self.features_keys=self.config_settings['features_keys']
+        self.classification_keys=self.config_settings['classification_keys']
+        self._setup_projections_()       
     def _setup_kowalski_(self,tokens: dict, hosts: list, time_out: int):
         instances = {
             host: {
@@ -61,7 +26,7 @@ class scope_client():
             for host in hosts
         }
         self.kowalski_instances = Kowalski(timeout=time_out, instances=instances)
-    def _setup_projections_(self): #lets one change the columns retreived
+    def _setup_projections_(self):
         self.projection_features={key:1 for key in self.features_keys}
         self.projection_classification={key:1 for key in self.classification_keys}   
     def cone_search(self,ra,dec,radius=2,unit='arcsec') -> pd.DataFrame:
@@ -298,3 +263,59 @@ class scope_client():
         class_ind=self.kowalski_instances.query(query=q_c).get('gloria').get('data')
         feature_ind=self.kowalski_instances.query(query=q_f).get('gloria').get('data')
         return class_ind,feature_ind
+    def get_light_curves_by_id(self,ids:list,catalog='ZTF_sources_20240117') -> pd.DataFrame:
+        assert isinstance(ids,list),'Ids must be a list'
+        match_id_f={'_id':{'$in':ids}}
+        pipeline_features=[
+            {'$match': match_id_f},
+        ]
+        q= {
+        "query_type": "aggregate",
+        "query": {
+            "catalog":catalog,
+            "pipeline": pipeline_features
+            }
+        }
+        response = self.kowalski_instances.query(query=q).get('melman')
+        if response.get('status') != 'success':
+            print('Querey failed')
+            print(response.get("message"))
+            return None
+        df=pd.DataFrame()
+        for lc in response.get('data'):
+            loop_df=pd.DataFrame(lc.get('data'))
+            loop_df['_id']=lc['_id']
+            df=pd.concat([df,loop_df],ignore_index=True)
+        df.sort_values(by='hjd')
+        return df
+    def get_light_curves_by_coord(self,ra,dec,catalog='ZTF_sources_20240117') -> pd.DataFrame:
+        q= {
+            "query_type": "cone_search",
+            "query": {
+                "object_coordinates": {
+                    "cone_search_radius": 2,
+                    "cone_search_unit": 'arcsec',
+                    "radec": {
+                        "center": [
+                            ra,
+                            dec
+                        ]
+                    }
+                },
+                "catalogs": {
+                    catalog: {}
+                }
+            }
+        }
+        response = self.kowalski_instances.query(query=q).get('melman')
+        if response.get('status') != 'success':
+            print('Querey failed')
+            print(response.get("message"))
+            return None
+        df=pd.DataFrame()
+        for lc in response.get('data').get(catalog).get('center'):
+            loop_df=pd.DataFrame(lc.get('data'))
+            loop_df['_id']=lc['_id']
+            df=pd.concat([df,loop_df],ignore_index=True)
+        df.sort_values(by='hjd')
+        return df
