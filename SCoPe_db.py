@@ -10,18 +10,19 @@ class scope_client():
         with open('config.yaml','r') as f:
             self.config_settings=yaml.load(f, Loader=yaml.FullLoader)
         self.max_n_threads=max_n_threads
-        self._setup_kowalski_(self.config_settings['tokens'],list(self.config_settings['tokens'].keys()),time_out)
+        self._setup_kowalski_(self.config_settings['username'],self.config_settings['password'],self.config_settings['hosts'],time_out)
 
         self.features_keys=self.config_settings['features_keys']
         self.classification_keys=self.config_settings['classification_keys']
         self._setup_projections_()       
-    def _setup_kowalski_(self,tokens: dict, hosts: list, time_out: int):
+    def _setup_kowalski_(self,username: str,password: str, hosts: list, time_out: int):
         instances = {
             host: {
                 'protocol': 'https',
                 'port': 443,
                 'host': f'{host}.caltech.edu',
-                'token': tokens[host],
+                'username': username,
+                'password': password
             }
             for host in hosts
         }
@@ -126,7 +127,8 @@ class scope_client():
         #then collect on _id
         if not isinstance(id,list):
             id=[id]
-
+        for i in range(len(id)):
+            id[i]= int(id[i])
         match_id_f={id_type:{'$in':id}}
         pipeline_features=[
             {'$match': match_id_f},
@@ -265,6 +267,8 @@ class scope_client():
         return class_ind,feature_ind
     def get_light_curves_by_id(self,ids:list,catalog='ZTF_sources_20240117') -> pd.DataFrame:
         assert isinstance(ids,list),'Ids must be a list'
+        for i in range(len(ids)):
+            ids[i]= int(ids[i])
         match_id_f={'_id':{'$in':ids}}
         pipeline_features=[
             {'$match': match_id_f},

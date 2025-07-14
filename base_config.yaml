@@ -1,7 +1,7 @@
 {
-  'tokens':{'gloria':'YOUR TOKEN',
-            'melman':"YOUR TOKEN",
-            'kowalski':"YOUR TOKEN"},
+  'username':"USERNAME",
+  'password':"PASSWORD",
+  'hosts':['gloria','melman','kowalski'],
   'features_keys':['_id','mean','amplitude',
             'period_ELS','significance_ELS',
             'period_ECE','significance_ECE',
