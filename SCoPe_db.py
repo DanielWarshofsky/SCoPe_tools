@@ -10,21 +10,21 @@ class scope_client():
         with open('config.yaml','r') as f:
             self.config_settings=yaml.load(f, Loader=yaml.FullLoader)
         self.max_n_threads=max_n_threads
-        self._setup_kowalski_(self.config_settings['username'],self.config_settings['password'],self.config_settings['hosts'],time_out)
+        self._setup_kowalski_(self.config_settings['hosts'],time_out)
 
         self.features_keys=self.config_settings['features_keys']
         self.classification_keys=self.config_settings['classification_keys']
         self._setup_projections_()       
-    def _setup_kowalski_(self,username: str,password: str, hosts: list, time_out: int):
+    def _setup_kowalski_(self,hosts: dict, time_out: int):
         instances = {
             host: {
                 'protocol': 'https',
                 'port': 443,
                 'host': f'{host}.caltech.edu',
-                'username': username,
-                'password': password
+                'username': hosts[host]['username'],
+                'password': hosts[host]['password']
             }
-            for host in hosts
+            for host in hosts.keys()
         }
         self.kowalski_instances = Kowalski(timeout=time_out, instances=instances)
     def _setup_projections_(self):

@@ -1,7 +1,10 @@
 {
-  'username':"USERNAME",
-  'password':"PASSWORD",
-  'hosts':['gloria','melman','kowalski'],
+  'hosts':{'gloria':{'username':"USERNAME",
+                     'password':"PASSWORD"},
+           'melman':{'username':"USERNAME",
+                     'password':"PASSWORD"},
+           'kowalski':{'username':"USERNAME",
+                     'password':"PASSWORD"},},
   'features_keys':['_id','mean','amplitude',
             'period_ELS','significance_ELS',
             'period_ECE','significance_ECE',
