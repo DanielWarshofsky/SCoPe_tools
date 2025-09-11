@@ -140,10 +140,11 @@ if __name__=="__main__":
     import pandas as pd
     import yaml
     import copy
-    data=pd.read_csv('/Users/danielwarshofsky/Isolated/similarity_search/1mill_SCoPe_subsample.csv')
+    #usage
+    data=pd.read_csv('some scope data.csv')
     sample=data.head(1)
     full_tree=None
-    with open('/Users/danielwarshofsky/Isolated/all_tax.yaml') as config_yaml:
+    with open('./all_tax.yaml') as config_yaml:
             full_tree = yaml.load(config_yaml, Loader=yaml.FullLoader)
     d=np.random.uniform(0,1,size=len(sample.columns))
     df=pd.DataFrame(columns=sample.columns)

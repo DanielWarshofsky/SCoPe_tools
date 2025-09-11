@@ -248,6 +248,98 @@ class scope_client():
 
         df=df_f.merge(df_c,on='_id')
         return df
+    def _fcq_feature(self,field:int,ccd:int,quad:int,filter_stage,join=True):
+        assert isinstance(field,int), "Field must be an int"
+        assert isinstance(ccd,int) and ccd in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], f"{ccd} is not a valid ccd number"
+        assert isinstance(quad,int) and ccd in [1,2,3,4], f"{quad} is not a valid quad number"
+        field_stage={'$match':{'field':{'$in':[field]}}}
+        ccd_stage={'$match':{'ccd':{'$in':[ccd]}}}
+        quad_stage={'$match':{'quad':{'$in':[quad]}}}
+        proj_feat_stage={'$project':self.projection_features}
+
+        pipeline_feat=[
+            field_stage,ccd_stage,quad_stage,proj_feat_stage,filter_stage #proj first, could save time?
+        ] 
+
+        query_features={"query_type": "aggregate",
+                "query": {
+                "catalog":'ZTF_source_features_DR16',
+                "pipeline": pipeline_feat
+                }
+            }
+        response_features = self.kowalski_instances.query(query=query_features).get('gloria')
+        if response_features.get('status') != 'success':
+            print('Querey failed')
+            print(response_features.get("message"))
+            return None
+        df_f=pd.DataFrame(response_features.get('data'))
+        ztf_ids=[ztf_id for ztf_id in df_f['_id']]
+        
+        match_id_c={'_id':{'$in':ztf_ids}}
+        pipeline_class=[
+            {'$match': match_id_c},
+            {'$project':self.projection_classification},
+        ]
+        query_class = {
+        "query_type": "aggregate",
+        "query": {
+            "catalog":"ZTF_source_classifications_DR16",
+            "pipeline": pipeline_class
+            }
+        }
+        response_class = self.kowalski_instances.query(query=query_class).get('gloria')
+        df_c=pd.DataFrame(response_class.get('data'))
+        if join:
+            df=df_f.merge(df_c,on='_id')
+            return df
+        else:
+            return df_c,df_f
+    def _fcq_classification(self,field:int,ccd:int,quad:int,filter_stage,join=True):
+        assert isinstance(field,int), "Field must be an int"
+        assert isinstance(ccd,int) and ccd in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], f"{ccd} is not a valid ccd number"
+        assert isinstance(quad,int) and ccd in [1,2,3,4], f"{quad} is not a valid quad number"
+        field_stage={'$match':{'field':{'$in':[field]}}}
+        ccd_stage={'$match':{'ccd':{'$in':[ccd]}}}
+        quad_stage={'$match':{'quad':{'$in':[quad]}}}
+        proj_feat_stage={'$project':self.projection_features}
+
+        pipeline_class=[
+            field_stage,ccd_stage,quad_stage,proj_feat_stage,filter_stage #proj first, could save time?
+        ] 
+
+        query_class={"query_type": "aggregate",
+                "query": {
+                "catalog":'"ZTF_source_classifications_DR16"',
+                "pipeline": pipeline_class
+                }
+            }
+        response_class = self.kowalski_instances.query(query=query_class).get('gloria')
+        if response_class.get('status') != 'success':
+            print('Querey failed')
+            print(response_class.get("message"))
+            return None
+        df_c=pd.DataFrame(response_class.get('data'))
+        ztf_ids=[ztf_id for ztf_id in df_c['_id']]
+        
+        match_id_c={'_id':{'$in':ztf_ids}}
+        pipeline_features=[
+            {'$match': match_id_c},
+            {'$project':self.projection_features},
+        ]
+        query_features = {
+        "query_type": "aggregate",
+        "query": {
+            "catalog":'ZTF_source_features_DR16',
+            "pipeline": pipeline_features
+            }
+        }
+        response_features = self.kowalski_instances.query(query=query_features).get('gloria')
+        df_f=pd.DataFrame(response_features.get('data'))
+        if join:
+            df=df_c.merge(df_f,on='_id')
+            return df
+        else:
+            return df_c,df_f
     def get_indecies(self):
         #not implemented
         q_f={"query_type": "info",
@@ -265,7 +357,7 @@ class scope_client():
         class_ind=self.kowalski_instances.query(query=q_c).get('gloria').get('data')
         feature_ind=self.kowalski_instances.query(query=q_f).get('gloria').get('data')
         return class_ind,feature_ind
-    def get_light_curves_by_id(self,ids:list,catalog='ZTF_sources_20240117') -> pd.DataFrame:
+    def get_light_curves_by_id(self,ids:list,catalog='ZTF_sources_20240515') -> pd.DataFrame:
         assert isinstance(ids,list),'Ids must be a list'
         for i in range(len(ids)):
             ids[i]= int(ids[i])
@@ -280,7 +372,7 @@ class scope_client():
             "pipeline": pipeline_features
             }
         }
-        response = self.kowalski_instances.query(query=q).get('melman')
+        response = self.kowalski_instances.query(query=q).get('gloria')
         if response.get('status') != 'success':
             print('Querey failed')
             print(response.get("message"))
@@ -292,7 +384,7 @@ class scope_client():
             df=pd.concat([df,loop_df],ignore_index=True)
         df.sort_values(by='hjd')
         return df
-    def get_light_curves_by_coord(self,ra,dec,catalog='ZTF_sources_20240117') -> pd.DataFrame:
+    def get_light_curves_by_coord(self,ra,dec,catalog='ZTF_sources_20240515') -> pd.DataFrame:
         q= {
             "query_type": "cone_search",
             "query": {
@@ -311,7 +403,7 @@ class scope_client():
                 }
             }
         }
-        response = self.kowalski_instances.query(query=q).get('melman')
+        response = self.kowalski_instances.query(query=q).get('gloria')
         if response.get('status') != 'success':
             print('Querey failed')
             print(response.get("message"))
