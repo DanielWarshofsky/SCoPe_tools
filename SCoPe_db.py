@@ -251,7 +251,7 @@ class scope_client():
     def _fcq_feature(self,field:int,ccd:int,quad:int,filter_stage,join=True):
         assert isinstance(field,int), "Field must be an int"
         assert isinstance(ccd,int) and ccd in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], f"{ccd} is not a valid ccd number"
-        assert isinstance(quad,int) and ccd in [1,2,3,4], f"{quad} is not a valid quad number"
+        assert isinstance(quad,int) and quad in [1,2,3,4], f"{quad} is not a valid quad number"
         field_stage={'$match':{'field':{'$in':[field]}}}
         ccd_stage={'$match':{'ccd':{'$in':[ccd]}}}
         quad_stage={'$match':{'quad':{'$in':[quad]}}}
@@ -297,7 +297,7 @@ class scope_client():
     def _fcq_classification(self,field:int,ccd:int,quad:int,filter_stage,join=True):
         assert isinstance(field,int), "Field must be an int"
         assert isinstance(ccd,int) and ccd in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], f"{ccd} is not a valid ccd number"
-        assert isinstance(quad,int) and ccd in [1,2,3,4], f"{quad} is not a valid quad number"
+        assert isinstance(quad,int) and quad in [1,2,3,4], f"{quad} is not a valid quad number"
         field_stage={'$match':{'field':{'$in':[field]}}}
         ccd_stage={'$match':{'ccd':{'$in':[ccd]}}}
         quad_stage={'$match':{'quad':{'$in':[quad]}}}
@@ -335,6 +335,53 @@ class scope_client():
         }
         response_features = self.kowalski_instances.query(query=query_features).get('gloria')
         df_f=pd.DataFrame(response_features.get('data'))
+        if join:
+            df=df_c.merge(df_f,on='_id')
+            return df
+        else:
+            return df_c,df_f    
+    def _cross_catalog_search(self,field:int,ccd:int,quad:int,filter_stage_classification,filter_stage_features,join=True):
+        assert isinstance(field,int), "Field must be an int"
+        assert isinstance(ccd,int) and ccd in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], f"{ccd} is not a valid ccd number"
+        assert isinstance(quad,int) and quad in [1,2,3,4], f"{quad} is not a valid quad number"
+        field_stage={'$match':{'field':{'$in':[field]}}}
+        ccd_stage={'$match':{'ccd':{'$in':[ccd]}}}
+        quad_stage={'$match':{'quad':{'$in':[quad]}}}
+        #classification search 
+        proj_feat_classification={'$project':self.projection_classification}
+        pipeline_class=[
+            field_stage,ccd_stage,quad_stage,proj_feat_classification,filter_stage_classification
+        ] 
+        query_class={"query_type": "aggregate",
+                "query": {
+                "catalog":'"ZTF_source_classifications_DR16"',
+                "pipeline": pipeline_class
+                }
+            }
+        response_class = self.kowalski_instances.query(query=query_class).get('gloria')
+        if response_class.get('status') != 'success':
+            print('Querey failed')
+            print(response_class.get("message"))
+            return None
+        df_c=pd.DataFrame(response_class.get('data'))
+        #feature search
+        proj_feat_stage={'$project':self.projection_features}
+        pipeline_feat=[
+            field_stage,ccd_stage,quad_stage,proj_feat_stage,filter_stage_features
+        ] 
+        query_features={"query_type": "aggregate",
+                "query": {
+                "catalog":'ZTF_source_features_DR16',
+                "pipeline": pipeline_feat
+                }
+            }
+        response_features = self.kowalski_instances.query(query=query_features).get('gloria')
+        if response_features.get('status') != 'success':
+            print('Querey failed')
+            print(response_features.get("message"))
+            return None
+        df_f=pd.DataFrame(response_features.get('data'))
+        #Prepare return
         if join:
             df=df_c.merge(df_f,on='_id')
             return df
