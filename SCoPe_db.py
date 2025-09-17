@@ -309,7 +309,7 @@ class scope_client():
 
         query_class={"query_type": "aggregate",
                 "query": {
-                "catalog":'"ZTF_source_classifications_DR16"',
+                "catalog":'ZTF_source_classifications_DR16',
                 "pipeline": pipeline_class
                 }
             }
